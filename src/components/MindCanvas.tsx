@@ -32,6 +32,7 @@ interface Props {
   onOpenImage: (asset: Asset, binding: NodeAsset) => void;
   onCanvasImage:(file:File,x:number,y:number)=>void;
   laser: boolean;
+  readOnly: boolean;
 }
 
 function NodeImage({ binding, asset, onOpen }: { binding: NodeAsset; asset: Asset; onOpen:()=>void }) {
@@ -92,7 +93,7 @@ export function MindCanvas(props: Props) {
     setDragging(null);setPanning(null);setMarquee(null);
   };
 
-  return <div ref={ref} className={`canvas ${props.laser?"laser-mode":""}`} role="tree" tabIndex={0} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerLeave={() => { setDragging(null); setPanning(null); setMarquee(null);setLaserPosition(null); }} onPointerDown={(e) => { if(props.laser)return;if (e.target === e.currentTarget) { props.onSelect([]); if(e.shiftKey){const rect=e.currentTarget.getBoundingClientRect();setMarquee({sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top})}else setPanning({ sx: e.clientX, sy: e.clientY, ox: props.pan.x, oy: props.pan.y }); } }} onWheel={(e) => { e.preventDefault(); props.onZoom(Math.min(1.8, Math.max(.35, props.zoom - e.deltaY * .001))); }} onContextMenu={(e) => { e.preventDefault(); props.onCanvasMenu(e.clientX, e.clientY); }} onDragOver={e=>e.preventDefault()} onDrop={e=>{if(e.target!==e.currentTarget)return;e.preventDefault();const file=e.dataTransfer.files[0];if(file&&ref.current){const rect=ref.current.getBoundingClientRect();props.onCanvasImage(file,(e.clientX-rect.left-props.pan.x)/props.zoom,(e.clientY-rect.top-props.pan.y)/props.zoom)}}} aria-label="Infinite mind map canvas">
+  return <div ref={ref} className={`canvas ${props.laser?"laser-mode":""} ${props.readOnly?"read-only":""}`} role="tree" tabIndex={0} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerLeave={() => { setDragging(null); setPanning(null); setMarquee(null);setLaserPosition(null); }} onPointerDown={(e) => { if(props.laser)return;if (e.target === e.currentTarget) { if(!props.readOnly)props.onSelect([]); if(!props.readOnly&&e.shiftKey){const rect=e.currentTarget.getBoundingClientRect();setMarquee({sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,left:rect.left,top:rect.top})}else setPanning({ sx: e.clientX, sy: e.clientY, ox: props.pan.x, oy: props.pan.y }); } }} onWheel={(e) => { e.preventDefault(); props.onZoom(Math.min(1.8, Math.max(.35, props.zoom - e.deltaY * .001))); }} onContextMenu={(e) => { e.preventDefault();if(!props.readOnly)props.onCanvasMenu(e.clientX, e.clientY); }} onDragOver={e=>{if(!props.readOnly)e.preventDefault()}} onDrop={e=>{if(props.readOnly||e.target!==e.currentTarget)return;e.preventDefault();const file=e.dataTransfer.files[0];if(file&&ref.current){const rect=ref.current.getBoundingClientRect();props.onCanvasImage(file,(e.clientX-rect.left-props.pan.x)/props.zoom,(e.clientY-rect.top-props.pan.y)/props.zoom)}}} aria-label={props.readOnly?"Mind map presentation":"Infinite mind map canvas"}>
     {props.grid&&<div className="canvas-grid" style={{ backgroundPosition: `${props.pan.x}px ${props.pan.y}px`, backgroundSize: `${24 * props.zoom}px ${24 * props.zoom}px` }} />}
     {marquee&&<div className="marquee" style={{left:Math.min(marquee.sx,marquee.x)-marquee.left,top:Math.min(marquee.sy,marquee.y)-marquee.top,width:Math.abs(marquee.x-marquee.sx),height:Math.abs(marquee.y-marquee.sy)}}/>}
     {props.laser&&laserPosition&&<div className="laser-pointer" style={{left:laserPosition.x,top:laserPosition.y}}/>}
@@ -102,8 +103,8 @@ export function MindCanvas(props: Props) {
         {props.connections.map(c=>{const s=byId.get(c.sourceId),t=byId.get(c.targetId);if(!s||!t)return null;const x1=s.x+s.width/2,y1=s.y+s.height/2,x2=t.x+t.width/2,y2=t.y+t.height/2;const d=c.style==="bezier"?`M ${x1} ${y1} C ${(x1+x2)/2} ${y1}, ${(x1+x2)/2} ${y2}, ${x2} ${y2}`:c.style==="elbow"?`M ${x1} ${y1} L ${(x1+x2)/2} ${y1} L ${(x1+x2)/2} ${y2} L ${x2} ${y2}`:`M ${x1} ${y1} L ${x2} ${y2}`;return <path className="independent-edge" key={c.id} style={{stroke:c.color}} d={d}/>})}
       </svg>
       {visible.map(node => <MapNode key={node.id} node={node} selected={props.selected.includes(node.id)} editing={props.editingId === node.id} images={props.nodeAssets.filter(binding=>binding.nodeId===node.id).map(binding=>({binding,asset:assetsById.get(binding.assetId)})).filter((value): value is {binding:NodeAsset;asset:Asset}=>Boolean(value.asset))}
-        onPointerDown={(e) => { if(props.laser)return;e.stopPropagation(); setDragging({ id: node.id, sx: e.clientX, sy: e.clientY, ox: node.x, oy: node.y }); }}
-        onSelect={(e) => props.onSelect(e.shiftKey ? [...new Set([...props.selected, node.id])] : [node.id])}
+        onPointerDown={(e) => { if(props.laser||props.readOnly)return;e.stopPropagation(); setDragging({ id: node.id, sx: e.clientX, sy: e.clientY, ox: node.x, oy: node.y }); }}
+        onSelect={(e) => {if(!props.readOnly)props.onSelect(e.shiftKey ? [...new Set([...props.selected, node.id])] : [node.id])}}
         onEdit={() => props.onEdit(props.editingId === node.id ? null : node.id)} onText={(text) => props.onText(node.id, text)} onToggle={() => props.onToggle(node.id)} onImage={file=>props.onImage(node.id,file)} onMenu={e=>{e.preventDefault();e.stopPropagation();props.onSelect([node.id]);props.onNodeMenu(node.id,e.clientX,e.clientY)}} onOpenImage={props.onOpenImage} />)}
     </div>
   </div>;

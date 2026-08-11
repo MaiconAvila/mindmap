@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Check, ChevronDown, CircleHelp, Command, Focus, Grid3X3, ImagePlus, Italic, LayoutPanelLeft, Link2, List, ListOrdered, Maximize, Menu, MousePointer2, PanelRightClose, Pilcrow, Plus, Redo2, Search, Share2, Sparkles, Star, Type, Underline, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Check, ChevronDown, CircleHelp, Command, Focus, Grid3X3, ImagePlus, Italic, LayoutPanelLeft, Link2, List, ListOrdered, Maximize, Menu, MousePointer2, PanelRightClose, Pilcrow, Play, Plus, Redo2, Search, Share2, Sparkles, Star, Type, Underline, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import { MindCanvas } from "./MindCanvas";
 import type { Asset, LayoutName, MapDocument, NodeAsset, NodeConnection, NodeIconName, ThemeName } from "@/src/types/domain";
 import { autoLayout } from "@/src/lib/layout";
@@ -23,6 +23,7 @@ interface Props {
   onConnection:(connection:NodeConnection)=>void;onDeleteConnection:(id:string)=>void;
   onImageUrl:(nodeId:string,url:string)=>void;onCanvasImage:(file:File,x:number,y:number)=>void;
   onAddFreeText:()=>void; onAddFreeImage:()=>void;
+  presentation:boolean; onPresentation:(active:boolean)=>void;
 }
 
 export function Editor(p: Props) {
@@ -32,13 +33,13 @@ export function Editor(p: Props) {
   const setLayout = (layout: LayoutName) => p.onDoc({ ...p.doc, mindmap: { ...p.doc.mindmap, layout, updatedAt: Date.now() } });
   const selectedImages = selectedNode ? p.doc.nodeAssets.filter(binding=>binding.nodeId===selectedNode.id) : [];
   const outlineNodes=useMemo(()=>{const result:{node:MapDocument["nodes"][number];depth:number}[]=[];const walk=(parent:string|null,depth:number)=>p.doc.nodes.filter(n=>n.parentId===parent).sort((a,b)=>a.sortOrder-b.sortOrder).forEach(node=>{result.push({node,depth});if(!node.collapsed)walk(node.id,depth+1)});walk(null,0);return result},[p.doc.nodes]);
-  return <main className={`editor-shell theme-${p.doc.mindmap.theme}`}>
+  return <main className={`editor-shell theme-${p.doc.mindmap.theme} ${p.presentation?"presentation-mode":""}`}>
     <header className="editor-topbar">
       <button className="icon-btn" onClick={p.onBack} aria-label="Back to dashboard"><ArrowLeft/></button><div className="editor-brand"><span className="brand-mark small">L</span></div><span className="top-divider"/>
       <input className="map-title" value={p.doc.mindmap.title} onChange={e => p.onDoc({ ...p.doc, mindmap: { ...p.doc.mindmap, title: e.target.value, updatedAt: Date.now() } }, false)} aria-label="Map title"/>
       <button className={`icon-btn star ${p.doc.mindmap.favorite ? "active" : ""}`} onClick={() => p.onDoc({...p.doc, mindmap:{...p.doc.mindmap, favorite:!p.doc.mindmap.favorite}})}><Star/></button>
       <div className="save-state"><span className={p.saved ? "saved-dot" : "saving-dot"}/>{p.saved ? "Saved locally" : "Saving…"}</div>
-      <div className="top-actions"><button className="icon-btn" onClick={p.onUndo}><Undo2/></button><button className="icon-btn" onClick={p.onRedo}><Redo2/></button><button className="share-button" onClick={p.onExport}><Share2/>Export</button><button className="icon-btn" onClick={p.onCommand}><Command/></button></div>
+      <div className="top-actions"><button className="presentation-button" onClick={()=>{setLaser(false);p.onSelect([]);p.onEdit(null);p.onPresentation(true)}}><Play/>Present</button><button className="icon-btn" onClick={p.onUndo}><Undo2/></button><button className="icon-btn" onClick={p.onRedo}><Redo2/></button><button className="share-button" onClick={p.onExport}><Share2/>Export</button><button className="icon-btn" onClick={p.onCommand}><Command/></button></div>
     </header>
     <div className="editor-body">
       <aside className="editor-rail"><button className={!outline?"active":""} onClick={()=>setOutline(false)}><Sparkles/><span>Map</span></button><button className={outline?"active":""} onClick={()=>setOutline(value=>!value)}><LayoutPanelLeft/><span>Outline</span></button><button onClick={p.onSearch}><Search/><span>Search</span></button><div className="rail-spacer"/><button onClick={p.onShortcuts}><CircleHelp/><span>Help</span></button></aside>
@@ -47,7 +48,7 @@ export function Editor(p: Props) {
         <div className="floating-toolbar">
           <button onClick={() => p.onAdd("child")}><Plus/>Child<kbd>Tab</kbd></button><span/><label className="layout-select"><LayoutPanelLeft/><select value={p.doc.mindmap.layout} onChange={e=>{const layout=e.target.value as LayoutName;p.onDoc({...p.doc,mindmap:{...p.doc.mindmap,layout,updatedAt:Date.now()},nodes:autoLayout(p.doc.nodes,layout)})}}><option value="mindmap">Mind map</option><option value="tree-right">Tree right</option><option value="vertical">Vertical</option><option value="radial">Radial</option></select><ChevronDown/></label><button disabled={p.selected.length!==2} onClick={p.onConnect}><Link2/>Connect</button><span/><button className={grid?"active":""} onClick={()=>setGrid(value=>!value)}><Grid3X3/>Grid</button><button onClick={() => p.onPan({x: window.innerWidth/2, y: window.innerHeight/2})}><Focus/>Center</button><span/><button onClick={p.onAddFreeText}><Type/>Text</button><button onClick={p.onAddFreeImage}><ImagePlus/>Image</button><button className={laser?"active laser-active":""} onClick={()=>setLaser(value=>!value)}><MousePointer2/>Laser</button>
         </div>
-        <MindCanvas nodes={p.doc.nodes} assets={p.doc.assets ?? []} nodeAssets={p.doc.nodeAssets ?? []} connections={p.doc.connections} selected={p.selected} editingId={p.editingId} zoom={p.zoom} pan={p.pan} onPan={p.onPan} onZoom={p.onZoom} onSelect={p.onSelect} grid={grid}
+        <MindCanvas nodes={p.doc.nodes} assets={p.doc.assets ?? []} nodeAssets={p.doc.nodeAssets ?? []} connections={p.doc.connections} selected={p.selected} editingId={p.editingId} zoom={p.zoom} pan={p.pan} onPan={p.onPan} onZoom={p.onZoom} onSelect={p.onSelect} grid={grid&&!p.presentation} readOnly={p.presentation}
           onMove={(id,x,y)=>{const current=p.doc.nodes.find(n=>n.id===id);if(!current)return;const dx=x-current.x,dy=y-current.y;const descendants=new Set([id]);let changed=true;while(changed){changed=false;p.doc.nodes.forEach(n=>{if(n.parentId&&descendants.has(n.parentId)&&!descendants.has(n.id)){descendants.add(n.id);changed=true}})}p.onDoc({...p.doc,mindmap:{...p.doc.mindmap,updatedAt:Date.now()},nodes:p.doc.nodes.map(n=>descendants.has(n.id)?{...n,x:n.x+dx,y:n.y+dy,updatedAt:Date.now()}:n)},false)}} onEdit={p.onEdit} onText={(id,text)=>updateNode(id,{text},false)} onToggle={(id)=>updateNode(id,{collapsed:!p.doc.nodes.find(n=>n.id===id)?.collapsed})} onCanvasMenu={(x,y) => p.onContext({x,y,nodeId:null})} onNodeMenu={(nodeId,x,y)=>p.onContext({x,y,nodeId})} onImage={p.onImage} onReparent={p.onReparent} onOpenImage={p.onOpenImage} onCanvasImage={p.onCanvasImage} laser={laser}/>
         <div className="zoom-control"><button onClick={()=>p.onZoom(Math.max(.35,p.zoom-.1))}><ZoomOut/></button><span>{Math.round(p.zoom*100)}%</span><button onClick={()=>p.onZoom(Math.min(1.8,p.zoom+.1))}><ZoomIn/></button><button onClick={()=>{p.onZoom(1);p.onPan({x:innerWidth*.43,y:innerHeight*.45})}}><Maximize/></button></div>
         <div className="offline-pill"><span/>Offline ready</div>
