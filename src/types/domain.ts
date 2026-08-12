@@ -1,6 +1,12 @@
 export type LayoutName = "mindmap" | "tree-right" | "vertical" | "radial";
 export type ThemeName = "dark" | "midnight" | "ocean" | "forest" | "purple" | "mono";
 export type NodeIconName = "lightbulb" | "star" | "check" | "warning" | "book" | "code" | "target" | "flag" | "heart" | "bookmark" | "calendar" | "briefcase";
+export type ColorRole = "background" | "text" | "border" | "connection";
+export type RecentColors = Record<ColorRole, string[]>;
+export interface AppSettings {
+  appearance: "dark" | "light" | "system";
+  recentColors: RecentColors;
+}
 
 export interface Mindmap {
   id: string;

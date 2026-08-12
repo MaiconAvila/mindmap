@@ -21,10 +21,10 @@ export function Dashboard({ documents, onOpen, onCreate, onToggleFavorite, onTra
       <div className="section-title"><h2>{section[0].toUpperCase()+section.slice(1)}</h2><span>{visible.length} maps</span></div>
       <div className={`map-grid ${list?"list-view":""}`}>
         {section!=="trash"&&<button className="create-card" onClick={onCreate}><span><Plus/></span><strong>New mind map</strong><small>Start with a blank canvas</small></button>}
-        {visible.map(doc => <article className="map-card" key={doc.mindmap.id} onClick={() => section!=="trash"&&onOpen(doc)} tabIndex={0}>
+        {visible.map(doc => <div className="map-card" key={doc.mindmap.id} role="button" onClick={() => section!=="trash"&&onOpen(doc)} onKeyDown={event=>{if((event.key==="Enter"||event.key===" ")&&section!=="trash"){event.preventDefault();onOpen(doc)}}} tabIndex={0}>
           <div className={`map-preview theme-${doc.mindmap.theme}`}><div className="preview-lines"><i/><i/><i/><b/></div><span>{doc.nodes.length} nodes</span></div>
           <div className="map-card-info"><div><h3>{doc.mindmap.title}</h3><p>Edited {relative(doc.mindmap.updatedAt)}</p></div>{section==="trash"?<><button onClick={(e)=>{e.stopPropagation();onRestore(doc)}} aria-label="Restore"><RotateCcw/></button><button className="delete-forever" onClick={(e)=>{e.stopPropagation();onDeletePermanent(doc)}} aria-label="Delete permanently"><Trash2/></button></>:<><button className={doc.mindmap.favorite ? "favorite" : ""} onClick={(e) => { e.stopPropagation(); onToggleFavorite(doc); }} aria-label="Favorite"><Star/></button><button onClick={(e) => { e.stopPropagation(); onTrash(doc); }} aria-label="Move to trash"><Trash2/></button></>}</div>
-        </article>)}
+        </div>)}
         {!visible.length&&section==="trash"&&<div className="empty-state"><Trash2/><h3>Trash is empty</h3><p>Deleted maps will stay here until you remove them permanently.</p></div>}
       </div>
     </section>

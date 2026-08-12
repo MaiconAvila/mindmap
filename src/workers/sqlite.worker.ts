@@ -66,8 +66,8 @@ self.onmessage = async (event: MessageEvent<{ id: number; type: string; payload:
     else if (type === "optimize") { db.exec("PRAGMA optimize; VACUUM;"); value = true; }
     else if (type === "stats") { const maps=rows("SELECT COUNT(*) count FROM mindmaps")[0];const nodes=rows("SELECT COUNT(*) count FROM nodes")[0];const pages=rows("PRAGMA page_count")[0];const pageSize=rows("PRAGMA page_size")[0];value={maps:Number(maps.count),nodes:Number(nodes.count),bytes:Number(pages.page_count)*Number(pageSize.page_size),mode}; }
     else if (type === "export-database") value = exportDatabase?.() ?? new Uint8Array();
-    else if (type === "get-settings") { const row=rows("SELECT value_json FROM app_settings WHERE key='app'")[0];value=row?JSON.parse(String(row.value_json)):{appearance:"dark"}; }
-    else if (type === "save-settings") { db.exec({sql:"INSERT OR REPLACE INTO app_settings VALUES('app',?)",bind:[JSON.stringify(payload)]});value=true; }
+    else if (type === "get-settings") { const row=rows("SELECT value_json FROM app_settings WHERE key='app'")[0];value=row?JSON.parse(String(row.value_json)):{appearance:"dark",recentColors:{background:[],text:[],border:[],connection:[]}}; }
+    else if (type === "save-settings") { const row=rows("SELECT value_json FROM app_settings WHERE key='app'")[0];const current=row?JSON.parse(String(row.value_json)):{};const patch=payload as Record<string,unknown>;const merged={...current,...patch,recentColors:patch.recentColors??current.recentColors};db.exec({sql:"INSERT OR REPLACE INTO app_settings VALUES('app',?)",bind:[JSON.stringify(merged)]});value=true; }
     self.postMessage({ id, ok: true, value });
   } catch (error) { self.postMessage({ id, ok: false, error: error instanceof Error ? error.message : String(error) }); }
 };

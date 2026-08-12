@@ -1,4 +1,5 @@
-import type { MapDocument } from "@/src/types/domain";
+import type { AppSettings, MapDocument } from "@/src/types/domain";
+import { DEFAULT_APP_SETTINGS, normalizeAppSettings } from "@/src/lib/editorFeatures";
 
 type WorkerReply = { id: number; ok: boolean; value?: unknown; error?: string };
 
@@ -7,6 +8,7 @@ class LocalDatabase {
   private sequence = 0;
   private pending = new Map<number, { resolve: (value: unknown) => void; reject: (reason: unknown) => void }>();
   private memory = new Map<string, MapDocument>();
+  private preferences: AppSettings = DEFAULT_APP_SETTINGS;
   mode: "sqlite-opfs" | "sqlite-memory" | "memory" = "memory";
 
   async init() {
@@ -16,7 +18,8 @@ class LocalDatabase {
       this.worker.onmessage = (event: MessageEvent<WorkerReply>) => {
         const request = this.pending.get(event.data.id); if (!request) return;
         this.pending.delete(event.data.id);
-        event.data.ok ? request.resolve(event.data.value) : request.reject(new Error(event.data.error));
+        if (event.data.ok) request.resolve(event.data.value);
+        else request.reject(new Error(event.data.error));
       };
       const info = await this.call("init", null) as { mode: "sqlite-opfs" | "sqlite-memory" };
       this.mode = info.mode;
@@ -36,8 +39,14 @@ class LocalDatabase {
   async optimize(): Promise<void> { if(this.worker)await this.call("optimize",null); }
   async exportDatabase(): Promise<Uint8Array> { if(this.worker)return this.call("export-database",null) as Promise<Uint8Array>;return new Uint8Array(); }
   async clear():Promise<void>{this.memory.clear();if(this.worker)await this.call("clear",null);}
-  async settings():Promise<{appearance:"dark"|"light"|"system"}>{if(this.worker)return this.call("get-settings",null) as Promise<{appearance:"dark"|"light"|"system"}>;return{appearance:"dark"};}
-  async saveSettings(settings:{appearance:"dark"|"light"|"system"}):Promise<void>{if(this.worker)await this.call("save-settings",settings);}
+  async settings(): Promise<AppSettings> {
+    if (this.worker) return normalizeAppSettings(await this.call("get-settings", null) as Partial<AppSettings>);
+    return this.preferences;
+  }
+  async saveSettings(settings: Partial<AppSettings>): Promise<void> {
+    this.preferences = normalizeAppSettings({ ...this.preferences, ...settings, recentColors: settings.recentColors ?? this.preferences.recentColors });
+    if (this.worker) await this.call("save-settings", settings);
+  }
 }
 
 export const localDatabase = new LocalDatabase();

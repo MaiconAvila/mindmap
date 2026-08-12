@@ -4,9 +4,8 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Asset, MindmapNode, NodeAsset, NodeConnection } from "@/src/types/domain";
 import { assetStore } from "@/src/database/assetStore";
+import { sanitizeRichText } from "@/src/lib/editorFeatures";
 import { NodeIcon } from "./NodeIcon";
-
-const safeRichText=(html:string)=>html.replace(/<(script|style|iframe|object)[^>]*>[\s\S]*?<\/\1>/gi,"").replace(/\son\w+\s*=\s*("[^"]*"|'[^']*')/gi,"").replace(/(href\s*=\s*["'])\s*javascript:/gi,"$1#");
 
 interface Props {
   nodes: MindmapNode[];
@@ -49,14 +48,14 @@ const MapNode = memo(function MapNode({ node, selected, editing, images, onPoint
   onEdit: () => void; onText: (text: string) => void; onToggle: () => void; onImage: (file: File) => void; onMenu: (event: React.MouseEvent) => void;onOpenImage:(asset:Asset,binding:NodeAsset)=>void;
 }) {
   const textStyle: React.CSSProperties={fontFamily:node.fontFamily==="serif"?"Georgia, serif":node.fontFamily==="mono"?"var(--font-mono), monospace":"var(--font-sans), sans-serif",fontSize:node.fontSize??12,fontWeight:node.fontWeight??590,fontStyle:node.fontStyle??"normal",textDecoration:node.textDecoration??"none",textAlign:node.textAlign??"left"};
-  const hasRichText=Boolean(node.richText?.replace(/<[^>]*>|&nbsp;/g,"").trim());const textless=!node.text.trim()&&!hasRichText;const kind=node.elementKind??"node";const mediaWidth=images.reduce((width,image)=>Math.max(width,image.binding.width+(textless?0:20)),0);
+  const hasRichText=Boolean(node.richText?.replace(/<[^>]*>|&nbsp;/g,"").trim());const hasContentBelow=hasRichText||images.some(image=>image.binding.position==="bottom");const textless=!node.text.trim()&&!hasRichText;const kind=node.elementKind??"node";const mediaWidth=images.reduce((width,image)=>Math.max(width,image.binding.width+(textless?0:20)),0);
   return <div className={`map-node kind-${kind} ${textless&&images.length?"image-only":""} ${selected ? "selected" : ""}`} style={{ transform: `translate(${node.x}px, ${node.y}px)`, width: Math.max(node.width,mediaWidth), minHeight: node.height, background: node.background, color: node.color, borderColor: node.borderColor }} onPointerDown={onPointerDown} onClick={onSelect} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();onEdit()}}} onDoubleClick={onEdit} onContextMenu={onMenu} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();e.stopPropagation();const file=e.dataTransfer.files[0];if(file)onImage(file)}} role="treeitem" tabIndex={0} aria-selected={selected}>
     {images.filter(image=>image.binding.position!=="bottom").map(image=><NodeImage key={image.binding.id} {...image} onOpen={()=>onOpenImage(image.asset,image.binding)}/>)}
-    {kind!=="image"&&<div className="node-content">
+    {kind!=="image"&&<div className={`node-content ${!hasContentBelow?"title-only":""}`}>
       <NodeIcon name={node.icon}/>
       {node.emoji && <span className="node-emoji">{node.emoji}</span>}
       {editing ? <textarea ref={element=>element?.focus()} className="node-input" style={textStyle} value={node.text} onChange={(e) => onText(e.target.value)} onBlur={onEdit} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEdit(); } else if (e.key === "Escape") { e.preventDefault(); onEdit(); } }} aria-label="Node title" rows={Math.max(1,node.text.split("\n").length)} /> : node.text&&<span className="node-label" style={textStyle}>{node.text}</span>}
-      {hasRichText&&<div className="node-rich-text" dangerouslySetInnerHTML={{__html:safeRichText(node.richText??"")}}/>}
+      {hasRichText&&<div className="node-rich-text" dangerouslySetInnerHTML={{__html:sanitizeRichText(node.richText??"")}}/>}
     </div>}
     {images.filter(image=>image.binding.position==="bottom").map(image=><NodeImage key={image.binding.id} {...image} onOpen={()=>onOpenImage(image.asset,image.binding)}/>)}
     {kind==="node"&&<button className="node-collapse" onClick={(e) => { e.stopPropagation(); onToggle(); }} aria-label={node.collapsed ? "Expand branch" : "Collapse branch"}>{node.collapsed ? <ChevronRight size={12}/> : <ChevronDown size={12}/>}</button>}
